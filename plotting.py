@@ -70,7 +70,7 @@ def plot_network(graph, pos, edge_attrs, node_attrs, output_dir):
         x, y = pos[node]
         node_trace['x'] += (x,)
         node_trace['y'] += (y,)
-        color = "cornflowerblue" if node_attrs[node]["verified"] else "green"
+        color = "cornflowerblue" if node_attrs[node]["verified"] else "gray"
         size  = node_attrs[node]["scaled_friends"] * 60 + 10
         verified = "verified" if node_attrs[node]["verified"] else "not verified"
         text = f"{node}\n {verified} \n #followers: {node_attrs[node]['#friends']}"
