@@ -4,6 +4,7 @@ import networkx as nx
 import json
 from plotting import plot_network, plot_analysis, plot_followers, plot_posts
 from pathlib import Path
+from pandas.errors import EmptyDataError
 
 
 def scale_dict_values(in_dict):
@@ -19,8 +20,19 @@ def scale_dict_values(in_dict):
 
 def plot_all(data_path : Path, out_path : Path):
 
-    edge_df = pandas.read_csv(data_path / "edge_list.csv", header= None)
-    user_info_df = pandas.read_csv(data_path / "user_attributes.csv")
+    try: 
+        edge_df = pandas.read_csv(data_path / "edge_list.csv", header= None)
+
+    except pandas.errors.EmptyDataError:
+
+        return pandas.errors.EmptyDataError
+        
+    try:
+        user_info_df = pandas.read_csv(data_path / "user_attributes.csv")
+
+    except pandas.errors.EmptyDataError:
+
+        return pandas.errors.EmptyDataError
 
     with open(data_path / "edge_list.json", "r") as handle:
         edges = json.load(handle)
@@ -29,7 +41,16 @@ def plot_all(data_path : Path, out_path : Path):
         edge_attributes = json.load(handle)
 
     with open(data_path / "user_attributes.json", "r") as handle:
-        user_attributes = json.load(handle)
+        user_attributes = json.load(handle) 
+
+    should_not_be_empty = (edges, edge_attributes, user_attributes, edge_df, user_info_df)
+
+    for i in should_not_be_empty:
+        if len(i) == 0:
+            msg = "is empty this error could also come from a json"
+            return pandas.errors.EmptyDataError(msg)
+            
+            
 
 
     user_follower_dict = {}
