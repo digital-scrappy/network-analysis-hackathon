@@ -39,10 +39,10 @@ This section includes detailed instructions for installing the tool, including a
 
         git clone https://github.com/digital-scrappy/network-analysis-hackathon
 
-3. Move to the tool's directory and install the tool
+3. Move to the tool's directory and install the dependencies
 
         cd network-analysis-hackathon
-        pip install .
+        pip install -r requirements.txt
 
 ## Usage
 
