@@ -261,7 +261,6 @@ def main(start_user:str, depth:int, num_tweets:int, project_name:str='Project_na
     #     tweet_text_dict.setdefault(tweet["display_name"], []).append(tweet)
         
     tweet_text_df = pd.DataFrame(tweet_contents)
-    print(tweet_text_df.head())
     
 
     #creating the filepath for the outputs
