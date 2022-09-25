@@ -240,7 +240,7 @@ def run_gui():
                                 # when the function for aggregating and saving all the files togethe is complete, 
                                 #change first param to False
                                 row['-PROJECT-NAME-'] = project_name_
-                                results.append(run_network_analysis(**row))
+                                results.append(run_network_analysis(save=True, **row))
                                 print(i)
                                 time.sleep(1)
                                 update_val = 100*(i+1)/len(query_df)
@@ -289,7 +289,7 @@ def run_gui():
                     else:
                         # if no error returned then now do the network analysis
                         print("Running single query ...")
-                        run_path, run_params_dict, out_edges, user_info, edge_attr_dict = run_network_analysis(**values)
+                        run_path, run_params_dict, out_edges, user_info, edge_attr_dict = run_network_analysis(save=True, **values)
                         #then show success window:
                         current_window.close()
                         current_window = generate_success_window(project_name_, f'Successfully retrieved snscrape data.\nStored in {run_path}.\n Generating plots and analysis now', **values)
@@ -377,7 +377,7 @@ def run_gui():
             # event, values = current_window.read()
             print(E)
             print(E.__str__())
-            E.__traceback__()
+            print(E.__traceback__)
             # raise E
             continue
 
