@@ -140,9 +140,20 @@ def start_from_user(user: str, max_it: int = 1, n_tweets: int = 100):
     user_dict[user] = result[1][1]
     users_to_update_with = set()
     # tweet_contents
+    tweet_dict = {"tweet_id" : [],
+                  "datetime" : [],
+                  "display_name" : [],
+                  "tweet_text" : [],
+                  "User_id" : []}
+    for tweet in result[2]:
+        for key, value in tweet.items():
+            tweet_dict[key].append(value)
+                  
+                  
+            
+            
 
-    tweet_dict = {}
-    tweet_dict[user] = result[2]
+    
 
     i = 0
     pool = multiprocessing.Pool(processes=12)
@@ -175,7 +186,9 @@ def start_from_user(user: str, max_it: int = 1, n_tweets: int = 100):
 
         for user_result in results:
             if len(user_result) >= 3:
-                tweet_dict[user_result[1][0]] = user_result[2]
+                for tweet in user_result[2]:
+                    for key, value in tweet.items():
+                        tweet_dict[key].append(value)
 
         
 
@@ -248,6 +261,7 @@ def main(start_user:str, depth:int, num_tweets:int, project_name:str='Project_na
     #     tweet_text_dict.setdefault(tweet["display_name"], []).append(tweet)
         
     tweet_text_df = pd.DataFrame(tweet_contents)
+    print(tweet_text_df.head())
     
 
     #creating the filepath for the outputs
