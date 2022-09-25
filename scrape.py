@@ -97,6 +97,8 @@ def get_user_tweets(user: str, n_tweets:int):
 
     for sub_d in tweet_contents_lst:
         sub_d['display_name'] = user
+    
+
 
     return (tweet_ids, mentions, user_info,  tweet_contents_lst)
 
@@ -137,8 +139,10 @@ def start_from_user(user: str, max_it: int = 1, n_tweets: int = 100):
     new_users = set(result[0])
     user_dict[user] = result[1][1]
     users_to_update_with = set()
+    # tweet_contents
 
-    tweet_contents = result[2]
+    tweet_dict = {}
+    tweet_dict[user] = result[2]
 
     i = 0
     pool = multiprocessing.Pool(processes=12)
@@ -150,15 +154,15 @@ def start_from_user(user: str, max_it: int = 1, n_tweets: int = 100):
 
         data = [(sub_user, n_tweets) for sub_user in new_users if sub_user]
 
-        result = pool.map(iteration, data)
+        results = pool.map(iteration, data)
 
         #get text content
-        # other_user_tweet_contents = result[2]
+        # other_user_tweet_contents = results[2]
 
         visited_users.update(new_users)
         
-        users_to_update_with = filter(None, map(lambda x: x[0] if x else None, result))
-        dict_updates = filter(None, map(lambda x: x[1] if x else None, result))
+        users_to_update_with = filter(None, map(lambda x: x[0] if x else None, results))
+        dict_updates = filter(None, map(lambda x: x[1] if x else None, results))
 
         for user_name, content in dict_updates:
             user_dict[user_name] = content
@@ -169,9 +173,13 @@ def start_from_user(user: str, max_it: int = 1, n_tweets: int = 100):
 
         # tweet_contents.extend(other_user_tweet_contents)
 
-    
+        for user_result in results:
+            if len(user_result) >= 3:
+                tweet_dict[user_result[1][0]] = user_result[2]
 
-    return user_dict, tweet_contents
+        
+
+    return user_dict, tweet_dict
 
 
 def main(start_user:str, depth:int, num_tweets:int, project_name:str='Project_name', save:bool=True)->tuple:
@@ -235,6 +243,10 @@ def main(start_user:str, depth:int, num_tweets:int, project_name:str='Project_na
     
 
     #tweet text content being turned to dataframe and then saved as well
+    # tweet_text_dict = {}
+    # for tweet in tweet_contents:
+    #     tweet_text_dict.setdefault(tweet["display_name"], []).append(tweet)
+        
     tweet_text_df = pd.DataFrame(tweet_contents)
     
 
