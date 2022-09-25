@@ -5,7 +5,19 @@ Our plan is to develop a tool that uses a link to a twitter profile as an input 
 
 We plan on making the tool modular in a way that it can easily be extended with additional features in the future. The modularity would also allow researchers to not use the tool as a 'one-stop-shop', but also only use parts of the tool, such as either the scraping or the analysis seperately.
 
-## Team Members
+## TODO
+
+- add Caveat that network will be plotted in a not fully connected way since we only count two way interactions
+
+## Future Ideas
+
+- have a full report combined on one webpage that can be saved to pdf
+https://stackoverflow.com/questions/36262748/save-plotly-plot-to-local-file-and-insert-into-html
+- cache users for faster scraping 
+
+
+## Members
+
 JH https://github.com/digital-scrappy
 
 TD https://github.com/timo-damm

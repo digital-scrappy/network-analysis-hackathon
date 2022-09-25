@@ -8,8 +8,10 @@ import time
 from datetime import datetime
 import PySimpleGUI as sg
 import re
+from pathlib import Path
 
 import scrape as TANV
+import create_plots as plot
 
 global name_of_tool
 name_of_tool = 'TANV (Working title)'
@@ -67,9 +69,9 @@ def generate_secondary_window_analysis_layout(project_name_ = f'{name_of_tool} p
 
 
     layout = [intro_row,
-            get_simple_str_input_w_key("1. Enter the name of your analysis project (for your own record-keeping purposes)", '-PROJECT-NAME-', project_name_, font_tuple, **kwargs),
-            get_file_browse_input_w_key('2. Select the user information file:', '-USER-INFO-FILE-', font_tuple),
-            get_file_browse_input_w_key('3. Select the edge list file:', '-EDGE-LIST-FILE-', font_tuple),
+            # get_simple_str_input_w_key("1. Enter the name of your analysis project (for your own record-keeping purposes)", '-PROJECT-NAME-', project_name_, font_tuple, **kwargs),
+            get_folder_browse_input_w_key('1. Select folder containing the necessary files', '-PRIOR-DATA-FOLDER-', font_tuple),
+            # get_file_browse_input_w_key('3. Select the edge list file:', '-EDGE-LIST-FILE-', font_tuple),
             [*get_simple_button_w_key("RUN ANALYSIS", "-RUN-ANALYSIS-"), *get_simple_button_w_key('Go back', '-BACK-TO-MAIN-'), *close_button_row],
                     ]
 
@@ -111,11 +113,11 @@ please click on 'RERUN ANALYSIS' to open separate menu.""",
     layout = [intro_row,
             [sg.Text('A.', font=(menu_font, 20)), sg.HorizontalSeparator(key='sep')],
             get_simple_str_input_w_key("1. Enter the name of your analysis project (for your own record-keeping purposes)", '-PROJECT-NAME-', project_name_, font_tuple, **kwargs),
-            get_simple_str_input_w_key("2. Enter your Twitter user to search:", '-TWITTER-SEARCH-USER-', '', font_tuple, **kwargs),
-            get_simple_str_input_w_key("3. Enter the maximum recursive depth* you'd like to explore to: ", '-MAX-REC-DEPTH-', 2 , font_tuple, **kwargs),
-            get_simple_str_input_w_key("4. Enter the maximum number of Tweets you'd like to retrieve:", "-MAX-N-TWEETS-", 10, font_tuple, **kwargs),
+            get_simple_str_input_w_key("2. Enter your Twitter user to search:", 'SEARCH_USER', '', font_tuple, **kwargs),
+            get_simple_str_input_w_key("3. Enter the maximum recursive depth* you'd like to explore to: ", 'MAX_DEPTH', 2 , font_tuple, **kwargs),
+            get_simple_str_input_w_key("4. Enter the maximum number of Tweets you'd like to retrieve:", "MAX_NUMBER_TWEETS", 10, font_tuple, **kwargs),
             [sg.Text('B.', font=(menu_font, 20)), sg.HorizontalSeparator(key='sep')],
-            get_simple_str_display('If you want to perform multiple searches, select an Excel/CSV file.\nIt *must* have following columns present:\n\nSEARCH_TERM, MAX_DEPTH, MAX_NUMBER_TWEETS\n',), 
+            get_simple_str_display('If you want to perform multiple searches, select an Excel/CSV file.\nIt *must* have following columns present:\n\nSEARCH_USER, MAX_DEPTH, MAX_NUMBER_TWEETS\n',), 
             get_file_browse_input_w_key('Select your queries file:', '-PARAMS-FILE-', font_tuple),
             [sg.HorizontalSeparator(key='sep')],
             [*get_simple_button_w_key("RUN TOOL", "-RUN-APP-"), *get_simple_button_w_key('RERUN ANALYSIS', '-RERUN-ANALYSIS-'), *close_button_row],
@@ -168,6 +170,8 @@ def get_simple_str_input_w_key(input_str:str, key:str, default_txt:str='', font:
 def get_file_browse_input_w_key(disp_str:str, key:str, font:tuple=(menu_font, menu_txt_font_size),)->list:
     return [sg.Text(disp_str, font=font), sg.FileBrowse('Select file', file_types=(('.csv', '.xlsx'),), initial_folder='.', key=key)]
 
+def get_folder_browse_input_w_key(disp_str:str, key:str, font:tuple=(menu_font, menu_txt_font_size),)->list:
+    return [sg.Text(disp_str, font=font), sg.FolderBrowse('Select folder', initial_folder='.', key=key)]
 
 def get_simple_button_w_key(button_label:str, key:str, font:tuple=(menu_font, menu_txt_font_size))->list:
     return [sg.Button(button_label,
@@ -191,7 +195,10 @@ def run_gui():
         event, values = current_window.read()
 
         #get user project name from value entered
-        project_name_ = values['-PROJECT-NAME-']
+        try:
+            project_name_ = values['-PROJECT-NAME-']
+        except KeyError:
+            project_name_ = f'{name_of_tool} project'
 
         try:
             # if-elif-else statements that trigger actions
@@ -223,22 +230,42 @@ def run_gui():
                         # so pass forward
                         results = []
                         query_df = get_query_df(filepath_selected)
-                        for i, row in query_df.iterrows():
-                            #  pass each row over to the wrapper_fn for TANV.main()
-                            # which should call and store the results, then aggregate them all
-                            # NOTE UNCOMMENT when ready to start testing multiple queries at once
-                            # results.append(run_network_analysis(row))
-                            print(i)
-                            time.sleep(1)
-                            update_val = 100*(i+1)/len(query_df)
-                            text_update = f"Executed {i+1} out of {len(query_df)} queries"
-                            current_window['-PROG-BAR-DISPLAY-'].update(text_update)
-                            current_window['-PROG-BAR-'].update(update_val)
-                            current_window.refresh()
+                        try:
+                            for i, row in query_df.iterrows():
+                                #  pass each row over to the wrapper_fn for TANV.main()
+                                # which should call and store the results, then aggregate them all
+                                # the run_network_analysis returns the following data files (and filepath)
+                                # run_path, run_params_dict, out_edges, user_info, edge_attr_dict
 
+                                # when the function for aggregating and saving all the files togethe is complete, 
+                                #change first param to False
+                                row['-PROJECT-NAME-'] = project_name_
+                                results.append(run_network_analysis(**row))
+                                print(i)
+                                time.sleep(1)
+                                update_val = 100*(i+1)/len(query_df)
+                                text_update = f"Executed {i+1} out of {len(query_df)} queries"
+                                current_window['-PROG-BAR-DISPLAY-'].update(text_update)
+                                current_window['-PROG-BAR-'].update(update_val)
+                                current_window.refresh()
+                        except Exception as E:
+                            error_msg = '\n'.join(['Error in code (please reach out to admin: ', str(E.__class__), str(E.__str__())])
+                            # Uncomment when fn ready
+                            # agg_results = aggregate_all_the_results(True, results)
+                            current_window.close()
+                            current_window = generate_post_error_intro_window(project_name_, 
+                                                                            f"""Error occurred while running multiple queries. Nr of queries run successfully = {i}:
+                                                                            Saving partial data recovered to {results[0]}. Saving remaining queries for future inside
+                                                                            {results[-1][0]}/remaining_queries.csv"""
+                                                                            )
+                            query_remain = query_df.iloc[i:]
+                            query_remain.to_csv(f'{results[-1][0]}/remaining_queries.csv')
+                            continue
 
-                        # concatenate the results
-                        results_df = pd.concat(results, ignore_index=True)
+                        # add all the results together and then save them
+                        # Uncomment when fn ready
+
+                        # agg_results = aggregate_all_the_results(results, save=True)
 
                         # and output them to a useful location
 
@@ -262,11 +289,15 @@ def run_gui():
                     else:
                         # if no error returned then now do the network analysis
                         print("Running single query ...")
-                        run_network_analysis(**values)
+                        run_path, run_params_dict, out_edges, user_info, edge_attr_dict = run_network_analysis(**values)
                         #then show success window:
                         current_window.close()
-                        current_window = generate_success_window(project_name_, 'Successfully retrieved snscrape data', **values)
-                        continue
+                        current_window = generate_success_window(project_name_, f'Successfully retrieved snscrape data.\nStored in {run_path}.\n Generating plots and analysis now', **values)
+
+                        # now to call the fn from create_plots
+                        plot.plot_all(run_path, run_path)
+
+                        continue 
 
             # NOTE: here I am just adding suggestions for other things to implement
             # e.g. if a user wants to run the analysis component again on data that was already stored,
@@ -283,31 +314,29 @@ def run_gui():
             elif event=='-RUN-ANALYSIS-':
                 #trigger events for rerunning the analysis component of scrape
                 # get the user file and the edge list
-                edge_list_fpath, user_info_fpath = values['-EDGE-LIST-FILE-'], values['-USER-INFO-FILE-']
+                # edge_list_fpath, user_info_fpath = values['-EDGE-LIST-FILE-'], values['-USER-INFO-FILE-']
 
-                error_status, error_msg = check_file_ends(edge_list_fpath, ('.csv', '.xlsx'), )
-                if error_status==True:
+                fpath = values['-PRIOR-DATA-FOLDER-']
+                files_therein = os.listdir(fpath)
+                #check now that the necessary files are present in the selected folder
+                error_status, error_msg = check_presence_of_files_for_analysis(files_therein)
+                if error_status:
                     # include a trigger for an erroneous trigger/event/input
                     current_window.close()
-                    print('ERRROR for analysis mode')
+                    print('ERROR for analysis mode')
                     current_window = generate_post_error_analysis_window(project_name_, error_msg, **values)
                     continue
 
-                error_status, error_msg = check_file_ends(user_info_fpath, ('.csv', '.xlsx'), error_status, error_msg)
-                if error_status==True:
-                    # include a trigger for an erroneous trigger/event/input
-                    current_window.close()
-                    print('ERROR in analysis mode inputs')
-                    current_window = generate_post_error_analysis_window(project_name_, error_msg, **values)
-                    continue
-
-                fpath_users_info = values['-USER-INFO-FILE-']
-                fpath_edge_list = values['-EDGE-LIST-FILE-']
+        
                 #pass to analysis function
                 # NOTE placeholder comment here
                 # analysis.main(fpath_users, fpath_edge)
 
                 # rerun_analysis_on_data_stored_locally(**values)
+                # now to call the fn from create_plots
+                run_path = Path(fpath)
+                plot.plot_all(run_path, run_path)
+
                 continue
 
             # event for going back to main
@@ -323,13 +352,50 @@ def run_gui():
 
         except Exception as E:
             error_msg = '\n'.join(['Error in code (please reach out to admin: ', str(E.__class__), str(E.__str__())])
-            # raise E
+            print(E)
+            print(E.__str__())
+            E.__traceback__()
+            raise E
             current_window.close()
             current_window = generate_post_error_intro_window(project_name_, error_msg, **values)
             # event, values = current_window.read()
             continue
 
+    return
 
+
+def check_presence_of_files_for_analysis(list_files:list):
+
+    necessary_files = ['edge_list.csv',
+                        'user_attributes.csv',
+                        'edge_list.json',
+                        'edge_attributes.json',
+                        'user_attributes.json',]
+
+    missing_files = [x for x in necessary_files if x not in list_files]
+    if len(missing_files)>0:
+        return True, ' '.join(['Error, following files missing from folder:', *missing_files])
+    else:
+        return False, ''
+
+def aggregate_all_the_results(save:bool=True, *args):
+    """Function takes a list of results, where each result should have the following stored
+    run_path, run_params_dict, out_edges, user_info, edge_attr_dict
+
+    1. Take the last run_path (it should the same anyway)
+    2. Concatenate the params dict
+    3. For all the others, add an id var, then concatenate them. 
+    4. Finally, pass them all to the saving function
+    """    
+
+    for lst_of_results in args:
+        _, run_params_dict, out_edges, user_info, edge_attr_dict = lst_of_results
+
+    #taking last runpath
+    run_path = args[-1][0]
+
+    if save:
+        TANV.save_query_results(run_path, run_params_dict, out_edges, user_info, edge_attr_dict)
 
     return
 
@@ -407,8 +473,8 @@ def try_out_params_file_cols_and_types(filepath:str)->tuple:
 
     # check columns
 
-    df_cols = list(df.columns)
-    necessary_cols = ['SEARCH_TERM', 'MAX_DEPTH', 'MAX_NUMBER_TWEETS']
+    df_cols = [x.strip() for x in df.columns]
+    necessary_cols = ['SEARCH_USER', 'MAX_DEPTH', 'MAX_NUMBER_TWEETS']
     if len(set(df_cols).intersection(set(necessary_cols)))!=len(necessary_cols):
         error_status=True
         missing_cols = [x for x in necessary_cols if x not in df_cols]
@@ -419,7 +485,7 @@ def try_out_params_file_cols_and_types(filepath:str)->tuple:
     row_error_status, row_error_msg = False, ''
     for i, row in df.iterrows():
         #unpack the values
-        search = row['SEARCH_TERM']
+        search = row['SEARCH_USER']
         max_rec_dep = row['MAX_DEPTH']
         max_n_tweets = row['MAX_NUMBER_TWEETS']
 
@@ -452,6 +518,7 @@ def get_query_df(fpath:str):
     elif fpath.endswith('xlsx'):
         df = pd.read_excel(fpath)
 
+    df.columns = [x.strip() for x in df.columns]
     return df
 
 
@@ -464,9 +531,9 @@ def try_out_kwarg_values_and_types(**kwargs)->tuple:
     
 
     #unpack the values
-    search = kwargs['-TWITTER-SEARCH-USER-']
-    max_rec_dep = kwargs['-MAX-REC-DEPTH-']
-    max_n_tweets = kwargs['-MAX-N-TWEETS-']
+    search = kwargs['SEARCH_USER']
+    max_rec_dep = kwargs['MAX_DEPTH']
+    max_n_tweets = kwargs['MAX_NUMBER_TWEETS']
 
     return try_out_query_params_values_and_types(search, max_rec_dep, max_n_tweets)
 
@@ -537,22 +604,23 @@ def generate_post_error_intro_window_layout(project_name_:str = f'{name_of_tool}
 def get_simple_str_display(disp_str:str, font:tuple=(menu_font, menu_txt_font_size), text_colour = menu_color)->list:
     return [sg.Text(disp_str, font= font, text_color=text_colour)]
 
-def run_network_analysis(**kwargs):    
+def run_network_analysis(save:bool=True, **kwargs):    
     """Wrapper function that unpacks the query arguments for a single SnScrape Query and then passes them to the main fn
     of multi_scrape.py
     """    
 
     # now pass the arguments forward to the TANV tool
-    main_user = kwargs['-TWITTER-SEARCH-USER-']
-    max_rec_dep = int(kwargs['-MAX-REC-DEPTH-'])
-    max_n_tweets = int(kwargs['-MAX-N-TWEETS-'])
+    main_user = kwargs['SEARCH_USER']
+    max_rec_dep = int(kwargs['MAX_DEPTH'])
+    max_n_tweets = int(kwargs['MAX_NUMBER_TWEETS'])
     
     project_name = process_filename(kwargs['-PROJECT-NAME-'])
     
     print(f'Search: {main_user}; Depth: {max_rec_dep}, Max tweets: {max_n_tweets}')
-    df = TANV.main(main_user, max_rec_dep, max_n_tweets, project_name)
+    # results are : run_path, run_params_dict, out_edges, user_info, edge_attr_dict 
+    results_ = TANV.main(main_user, max_rec_dep, max_n_tweets, project_name, save)
 
-    return df
+    return results_
 
 def process_filename(x:str)->str:
     """Checks a filename for special characters and the like that would cause an error in filesaving and removes them, as well as spaces
@@ -565,7 +633,7 @@ def process_filename(x:str)->str:
     """    
     x = x.strip()
     x = re.subn(r'[`$&+,:;=?@#|\'<>.^*()%!\-]', '', x)[0]
-    x = x.replace(' ', '')
+    x = x.replace(' ', '_')
 
     return x
 
