@@ -45,6 +45,13 @@ This section includes detailed instructions for installing the tool, including a
         pip install .
 
 ## Usage
+
+To open the GUI run (with the dependencies installed): 
+
+```
+python network_analysis_gui.py
+```
+
 To use the tool, open the GUI and specify the project name, user name, recursive search depth and number of tweets (part A). If multiple queries should be executed, upload a query table (query_table.csv) in part B to schedule the queries. The query table should include a column for each of the required inputs and a row for each query (i.e. SEARCH_USER, MAX_DEPTH, MAX_NUMBER_TWEETS). The query table should not contain a column with project names.
 
 As the number of mentions in the network increases roughly exponentially with increases in the recursive search depth, it is worthwile thinking about the combination of search depth and number of tweets. Besides the longer runtime, the network plot also becomes increasingly messy. A combination that has worked well in the past is a recursive search depth of 2 with 50 tweets. This is obviously also dependent on how many users are tagged per tweet. 
