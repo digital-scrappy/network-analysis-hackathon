@@ -13,7 +13,8 @@ TD https://github.com/timo-damm
 IP https://github.com/Ioana-P
 
 ## Dependencies
-Python >= 3.8
+Python >= 3.8 and the 
+
 python dependencies in requirements.txt
 
 ## Tool Description
