@@ -240,7 +240,7 @@ def run_gui():
                                 # when the function for aggregating and saving all the files togethe is complete, 
                                 #change first param to False
                                 row['-PROJECT-NAME-'] = project_name_
-                                results.append(run_network_analysis(**row))
+                                results.append(run_network_analysis(save=True, **row))
                                 print(i)
                                 time.sleep(1)
                                 update_val = 100*(i+1)/len(query_df)
@@ -289,13 +289,23 @@ def run_gui():
                     else:
                         # if no error returned then now do the network analysis
                         print("Running single query ...")
-                        run_path, run_params_dict, out_edges, user_info, edge_attr_dict = run_network_analysis(**values)
+                        run_path, run_params_dict, out_edges, user_info, edge_attr_dict = run_network_analysis(save=True, **values)
                         #then show success window:
                         current_window.close()
                         current_window = generate_success_window(project_name_, f'Successfully retrieved snscrape data.\nStored in {run_path}.\n Generating plots and analysis now', **values)
 
                         # now to call the fn from create_plots
-                        plot.plot_all(run_path, run_path)
+                        plot_result = plot.plot_all(run_path, run_path)
+
+                        # check in case an error is returned
+                        # NOTE: this part will be developed further to have more specific error handling and flagging
+                        if plot_result==pd.errors.EmptyDataError:
+                            # go to an error menu
+                            error_msg = """One or more of the files being loaded into the plotting module are faulty. This could be for a number of reasons:\n- a file may be empty (It seems like your query found no two way interactions. Try increasing the number of tweets or the recursion depth)
+                            """
+                            current_window.close()
+                            current_window = generate_post_error_intro_window(project_name_, error_msg, **values)
+
 
                         continue 
 
@@ -335,7 +345,17 @@ def run_gui():
                 # rerun_analysis_on_data_stored_locally(**values)
                 # now to call the fn from create_plots
                 run_path = Path(fpath)
-                plot.plot_all(run_path, run_path)
+                # now to call the fn from create_plots
+                plot_result = plot.plot_all(run_path, run_path)
+
+                # check in case an error is returned
+                # NOTE: this part will be developed further to have more specific error handling and flagging
+                if plot_result==pd.errors.EmptyDataError:
+                    # go to an error menu
+                    error_msg = """One or more of the files being loaded into the plotting module are faulty. This could be for a number of reasons:\n- a file may be empty (It seems like your query found no two way interactions. Try increasing the number of tweets or the recursion depth)
+                    """
+                    current_window.close()
+                    current_window = generate_post_error_intro_window(project_name_, error_msg, **values)
 
                 continue
 
@@ -352,13 +372,13 @@ def run_gui():
 
         except Exception as E:
             error_msg = '\n'.join(['Error in code (please reach out to admin: ', str(E.__class__), str(E.__str__())])
-            print(E)
-            print(E.__str__())
-            E.__traceback__()
-            raise E
             current_window.close()
             current_window = generate_post_error_intro_window(project_name_, error_msg, **values)
             # event, values = current_window.read()
+            print(E)
+            print(E.__str__())
+            print(E.__traceback__)
+            # raise E
             continue
 
     return
