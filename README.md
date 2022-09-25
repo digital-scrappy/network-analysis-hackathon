@@ -1,13 +1,8 @@
-# Project name
+# Blattodea
 ## OUR PLAN
 
 Departing from a python script that scrapes data on interactions between twitter users and general information on their profiles, we aim to create a GUI in which users can specify a twitter user name, a recursive search depth (as in how many 'steps away' the tool should go from the original interaction), and a number of tweets to download from the originally specified user. This data is then used to create interactive visualizations and tables in html format, containing descriptive statistics and other information about the network, which are automatically saved on the users machine. We aim to allow multiple queries at the same time, an option to save queries for future searches and the display of error messages if the input is misspecified or the files are faulty.
 The tool should be modular in a way that it can easily be extended with additional features in the future, ranging from the GUI to the scripts for analysis and visualizations. The modularity would also allow researchers to not use the tool as a 'one-stop-shop', but also only use parts of the tool, such as either the scraping or the analysis seperately.
-
-## TODO
-
-- add Caveat that network will be plotted in a not fully connected way since we only count two way interactions
-- update installation part
 
 ## Members
 
@@ -16,13 +11,14 @@ JH https://github.com/digital-scrappy
 TD https://github.com/timo-damm
 
 IP https://github.com/Ioana-P
+
 ## Dependencies
-Python
-Pandoc
-gcc-fortan
+Python >= 3.8
 python dependencies in requirements.txt
 
 ## Tool Description
+A collection of demo plots made with our tool can be found here: https://digital-scrappy.github.io/bellingcat_demopages/
+
 In the [Bellingcat Survey](https://www.bellingcat.com/resources/2022/08/12/these-are-the-tools-open-source-researchers-say-they-need/) a majority researchers indicated they are in need of *free* tools that are *easy to use* (i.e. do not include writing your own code, using GitHub, or extensive use of the command line. With regards to network analysis specifically, users were in need of "*a network analysis tool to analyse social media connections*", which includes measures such as degree centrality and displays clear graphs. Other users were in need of "*a simple tool to visualize connections*" or "*a tool that helps draw network diagrams from data*"
 The tool we developed produces easily understandable graphs and information about the network, without having to have knowledge on how to write code or use a command line interface. 
 In it's most simple form, the user only needs to install and use the GUI. In the GUI, the user can then specify a project name for their project, give a twitter username, a recursive search depth and the number of tweets to be downloaded from the original user. The tool then automatically uses snscrape to scrape the profile data of the original user, such as  their user name, follower count, their friends count, their interactions, media uploads, retweets etc. Furthermore, the tweets are downloaded. An interaction between two profiles is identified when there is a mutual interaction (i.e. both users mention each other in at least one tweet). Then, the profile data and tweets of interacting profiles are scraped. This process is repeated n times, where n is the recursive search depth. 
