@@ -17,7 +17,7 @@ Python >= 3.8
 python dependencies in requirements.txt
 
 ## Tool Description
-A collection of demo plots made with our tool can be found here: https://digital-scrappy.github.io/bellingcat_demopages/
+A collection of demo plots made with our tool can be found [here](https://digital-scrappy.github.io/bellingcat_demopages/
 
 In the [Bellingcat Survey](https://www.bellingcat.com/resources/2022/08/12/these-are-the-tools-open-source-researchers-say-they-need/) a majority researchers indicated they are in need of *free* tools that are *easy to use* (i.e. do not include writing your own code, using GitHub, or extensive use of the command line. With regards to network analysis specifically, users were in need of "*a network analysis tool to analyse social media connections*", which includes measures such as degree centrality and displays clear graphs. Other users were in need of "*a simple tool to visualize connections*" or "*a tool that helps draw network diagrams from data*"
 The tool we developed produces easily understandable graphs and information about the network, without having to have knowledge on how to write code or use a command line interface. 
