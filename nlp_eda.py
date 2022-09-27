@@ -45,6 +45,36 @@ def plot_term_freq_dist(df :pd.DataFrame, output_dir : Path, y_term:str='word', 
     fig_follower.write_html(output_dir/ f"{top_n}_{y_term}_frequency_plot.html")
 
 
+#cleaning extract URLs, extract handles
+
+def extract_linkable_features(df:pd.DataFrame, text_col:str='tweet-text')->pd.DataFrame:
+
+
+    df['extracted_twitter_handles'] = df[text_col].apply(lambda x: re.findall('@[a-zA-Z0-9_]{1,16}', x) if isinstance(x,str) else x)
+
+    url_regex_patt = '(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})'
+    df['extracted_URLs'] = df[text_col].apply(lambda x: re.findall(url_regex_patt ,x) if isinstance(x,str) else x)
+
+    df['extracted_hashtags'] = df[text_col].apply(lambda x: re.findall('#[a-zA-Z0-9]{1,140}', x) if isinstance(x,str) else x)
+
+    return df
+
+def remove_linkable_features(df:pd.DataFrame, text_col:str='tweet_text')->pd.DataFrame:
+
+    clean_col = f'clean_{text_col}'
+    df[clean_col] = df[text_col].apply(lambda x: re.subn('@[a-zA-Z0-9_]{1,16}','', x)[0] if isinstance(x,str) else x)
+
+    url_regex_patt = '(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})'
+    df[clean_col] = df[clean_col].apply(lambda x: re.subn(url_regex_patt ,'',x)[0] if isinstance(x,str) else x)
+
+    df[clean_col] = df[clean_col].apply(lambda x: re.subn('#[a-zA-Z0-9]{1,140}','', x)[0] if isinstance(x,str) else x)
+
+    return df
+
+def extract_and_remove_linkable_features(df:pd.DataFrame, text_col:str='tweet_text'):
+
+    return remove_linkable_features(extract_linkable_features(df, text_col))
+
 
 def main(input_file:str, output_dir:str):
 
