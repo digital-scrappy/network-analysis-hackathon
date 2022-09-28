@@ -1,3 +1,5 @@
+from cgitb import text
+from lib2to3.pytree import generate_matches
 import pandas as pd
 import numpy as np
 import os
@@ -11,6 +13,7 @@ from nltk import FreqDist
 from nltk.tokenize import RegexpTokenizer
 from nltk.stem import WordNetLemmatizer, PorterStemmer
 import re
+from nltk.collocations import BigramCollocationFinder, TrigramCollocationFinder
 
 import plotly_express as px
 
@@ -18,10 +21,46 @@ from sklearn.decomposition import LatentDirichletAllocation as LDA
 
 tokenizer = RegexpTokenizer(r'\b[A-Za-z0-9\-]{1,}\b')
 default_tk = tokenizer
-gen_stop_words = list(set(stopwords.words("english")))
-gen_stop_words += list(string.punctuation)
+# gen_stop_words = list(set(stopwords.words("english")))
+# gen_stop_words += list(set(stopwords.words('french')))
+# gen_stop_words += list(set(stopwords.words('german')))
+# gen_stop_words += list(set(stopwords.words('spanish')))
+# gen_stop_words += list(set(stopwords.words('russian')))
+
+# gen_stop_words += list(string.punctuation)
 
 from pathlib import Path
+
+def generate_stop_words_by_language(lst_languages:list)->list:
+    """Returns a list with stopwords from different languages, based on 
+    nltk.corpus.stopwords. Also adds punctuations to the list of stopwords. 
+    Result to be used in data cleaning/omitting terms
+
+    Args:
+        lst_languages (list): list of languages to use. If an incorrect language 
+        is specified, then it will be omitted but an error will NOT be raised
+
+    Returns:
+        list: list of stopwords 
+    """    
+
+    gen_stop_words = []
+    for lang in lst_languages:
+        try:
+            gen_stop_words += list(set(stopwords.words(lang)))
+
+        except OSError: 
+            print(f'Could not find stop words for {lang}. Omitting from list of stopwords')
+            pass
+
+    gen_stop_words += list(string.punctuation)
+
+    return gen_stop_words
+
+lst_languages = ['english', 'french', 'spanish', 'german', 'spanish', 'russian']
+gen_stop_words = generate_stop_words_by_language(lst_languages)
+
+
 
 def plot_term_freq_dist(df :pd.DataFrame, output_dir : Path, y_term:str='word', top_n:int=20):
 
@@ -44,6 +83,45 @@ def plot_term_freq_dist(df :pd.DataFrame, output_dir : Path, y_term:str='word', 
     })
     fig_follower.write_html(output_dir/ f"{top_n}_{y_term}_frequency_plot.html")
 
+
+def tokenize_text(df:pd.DataFrame, text_col:str='clean_tweet_text', stopwords:list=gen_stop_words)->pd.DataFrame:
+    df[f'{text_col}_tokens'] = df[text_col].apply(lambda x : [tok for tok in tokenizer.tokenize(x) if tok not in stopwords])
+
+def print_top_trig_collocs(word, pd_series:pd.Series, tokenizer, frac_corpus = 0.1, stopwords = gen_stop_words):
+    corpus = [tokenizer.tokenize(x) for x in pd_series.to_list()]
+    finder = TrigramCollocationFinder.from_documents(corpus)
+    finder.apply_freq_filter(round(frac_corpus*len(pd_series)))
+    main_trigrams = finder.nbest(trigram_measures.likelihood_ratio, 100000)
+    for trigram in main_trigrams:
+        if word in trigram:
+            print(trigram)
+        
+    return
+
+def get_term_freq_df(tok_series:pd.Series)->pd.DataFrame:
+    """Takes in a pandas series with tokenized cells of text; adds them together
+    then returns the frequency distribution dataframe for that corpus. 
+
+    Args:
+        tok_series (pd.Series): data series containing tokenized text
+
+    Returns:
+        pd.DataFrame: dataframe with corpus frequency distribution values
+    """    
+
+    corpus_lst = tok_series.to_list()
+    joined_corpus = []
+    for doc in corpus_lst:
+        for token in doc:
+            joined_corpus.append(token)
+
+    fdist = FreqDist(joined_corpus)
+
+    term_freqs = pd.DataFrame(fdist, index=[0]).T.reset_index()
+    term_freqs.columns = ['term', 'frequency']
+    term_freqs.sort_values('frequency', ascending=False, inplace=True)
+        
+    return term_freqs
 
 #cleaning extract URLs, extract handles
 
