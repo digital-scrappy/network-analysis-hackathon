@@ -74,10 +74,10 @@ def apply_tfidf_and_return_table_of_results(tfidf:TfidfVectorizer, df:pd.DataFra
     Returns:
         pd.DataFrame: single-column table containing the terms as an index 
     """    
-    tfidf_df = pd.DataFrame(tfidf.fit_transform(df['clean_tweet_text']).toarray(), index = df.index, columns = tfidf.get_feature_names_out())
+    tfidf_df = pd.DataFrame(tfidf.fit_transform(df[text_col]).toarray(), index = df.index, columns = tfidf.get_feature_names_out())
 
     # full_df = df.join(new_df)
-    tfidf_sum = pd.DataFrame(tfidf_df.sum(), columns = ['tf_idf_score']).sort_values('tf_idf_score', ascending=False).reset_index().rename({'index':'terms'})
+    tfidf_sum = pd.DataFrame(tfidf_df.sum(), columns = ['tf_idf_score']).sort_values('tf_idf_score', ascending=False).reset_index().rename({'index':'terms'}, axis=1)
     
     return tfidf_sum
 
@@ -97,12 +97,57 @@ def get_tfidf_scores(df:pd.DataFrame, text_col:str, ngram_range:tuple=(1,2),
 
     return apply_tfidf_and_return_table_of_results(tfidf, df, text_col)
 
+def calculate_and_plot_tfidf(input_dir:Path, output_dir:Path, top_n:int, text_col_raw :str, tokenizer=tokenizer.tokenize, 
+                            stopwords:list=gen_stop_words, 
+                            ngram_range:tuple=(1,2),
+                        min_doc_frequency:float=0.01, max_doc_frequency:float = 1.0,
+                        smooth_idf:bool=False,):
 
-def plot_term_freq_dist(df :pd.DataFrame, output_dir : Path, y_term:str='word', top_n:int=20):
+    fpath = input_dir/ Path('tweet_text.csv')
+    df = pd.read_csv(str(fpath))
+    df = extract_and_remove_linkable_features(df, text_col_raw)
+    text_col_clean = f'clean_{text_col_raw}'
+    tfidf_ = get_tfidf_scores(df, text_col_clean, ngram_range, tokenizer, stopwords, min_doc_frequency, max_doc_frequency, smooth_idf)
+    return plot_tfidf_dist(tfidf_, output_dir, top_n)
+
+# def clean_df_text(df:pd.DataFrame, text_col_raw:str='tweet_text')->pd.DataFrame:
+
+
+
+def plot_tfidf_dist(data :pd.DataFrame, output_dir : Path,  top_n:int=20):
 
     # top terms, filter out
+    df = data.copy()
+    df = df.sort_values('tf_idf_score', ascending=False)
+    df = df.iloc[:top_n]
+
+    top_n = len(df)
+
+    fig_follower = px.bar(df, x='tf_idf_score',y='terms',
+                        # color= '#followers', color_continuous_scale= 'deep',
+                labels={
+                    "frequency" : "Frequency",
+                    # "#followers" : "number of followers"
+                    },
+                        )
+    fig_follower.update_traces(hovertemplate='tf-idf score: %{x}'+'<br>Term: %{y}')
+    fig_follower.update_layout(title_text= f"Top {top_n} terms by TF-IDF* scores", title_x= 0.5,
+                                # subtitle_text = f"*Term Frequency Inverse Document Frequency - a measure of the importance\nor relevance of the term"
+                                )
+    fig_follower.update_layout({
+    'plot_bgcolor': 'rgba(0, 0, 0, 0)',
+    'paper_bgcolor': 'rgba(0, 0, 0, 0)',
+    })
+    fig_follower.write_html(output_dir/ f"{top_n}_TF_IDF_frequency_plot.html")
+    return fig_follower
+
+
+def plot_term_freq_dist(data :pd.DataFrame, output_dir : Path, y_term:str='word', top_n:int=20):
+
+    df = data.copy()
+    # top terms, filter out
     df = df.sort_values('frequency', ascending=False)
-    df = df.iloc[:20]
+    df = df.iloc[:top_n]
 
     fig_follower = px.bar(df, x='frequency',y=y_term,
                         # color= '#followers', color_continuous_scale= 'deep',
@@ -172,7 +217,7 @@ def get_term_freq_df(tok_series:pd.Series)->pd.DataFrame:
 
 #cleaning extract URLs, extract handles
 
-def extract_linkable_features(df:pd.DataFrame, text_col:str='tweet-text')->pd.DataFrame:
+def extract_linkable_features(df:pd.DataFrame, text_col:str='tweet_text')->pd.DataFrame:
 
 
     df['extracted_twitter_handles'] = df[text_col].apply(lambda x: re.findall('@[a-zA-Z0-9_]{1,16}', x) if isinstance(x,str) else x)
