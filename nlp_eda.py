@@ -14,7 +14,8 @@ from nltk.tokenize import RegexpTokenizer
 from nltk.stem import WordNetLemmatizer, PorterStemmer
 import re
 from nltk.collocations import BigramCollocationFinder, TrigramCollocationFinder
-
+bigram_measures = nltk.collocations.BigramAssocMeasures()
+trigram_measures = nltk.collocations.TrigramAssocMeasures()
 import plotly_express as px
 
 from sklearn.decomposition import LatentDirichletAllocation as LDA
@@ -61,6 +62,41 @@ lst_languages = ['english', 'french', 'spanish', 'german', 'spanish', 'russian']
 gen_stop_words = generate_stop_words_by_language(lst_languages)
 
 
+def apply_tfidf_and_return_table_of_results(tfidf:TfidfVectorizer, df:pd.DataFrame, text_col:str)->pd.DataFrame:
+    """Fn takes in dataframe, with specified text column, an instantiated sklearn tfidf-vectorizer 
+    and outputs a sorted table of all the the terms with their respective tf-idf scores
+
+    Args:
+        tfidf (TfidfVectorizer): sklearn tfidf vectorizer instance
+        df (pd.DataFrame): dataframe
+        text_col (str): text column we wish to tokenizer and analyse
+
+    Returns:
+        pd.DataFrame: single-column table containing the terms as an index 
+    """    
+    tfidf_df = pd.DataFrame(tfidf.fit_transform(df['clean_tweet_text']).toarray(), index = df.index, columns = tfidf.get_feature_names_out())
+
+    # full_df = df.join(new_df)
+    tfidf_sum = pd.DataFrame(tfidf_df.sum(), columns = ['tf_idf_score']).sort_values('tf_idf_score', ascending=False).reset_index().rename({'index':'terms'})
+    
+    return tfidf_sum
+
+def get_tfidf_scores(df:pd.DataFrame, text_col:str, ngram_range:tuple=(1,2), 
+                    tokenizer=tokenizer.tokenize, stopwords:list=gen_stop_words, 
+                    min_doc_frequency:float=0.1, max_doc_frequency:float = 1.0,
+                    smooth_idf:bool=False,
+                    )->pd.DataFrame:
+
+
+    tfidf = TfidfVectorizer(tokenizer=tokenizer, 
+                            ngram_range=ngram_range, 
+                            min_df=min_doc_frequency, 
+                            max_df=max_doc_frequency,
+                            smooth_idf=smooth_idf,
+                            stop_words=stopwords)
+
+    return apply_tfidf_and_return_table_of_results(tfidf, df, text_col)
+
 
 def plot_term_freq_dist(df :pd.DataFrame, output_dir : Path, y_term:str='word', top_n:int=20):
 
@@ -76,7 +112,7 @@ def plot_term_freq_dist(df :pd.DataFrame, output_dir : Path, y_term:str='word', 
                     },
                         )
     fig_follower.update_traces(hovertemplate='Frequency: %{x}'+'<br>Term: %{y}')
-    fig_follower.update_layout(title_text= f"Most commonly used {y_term}", title_x= 0.5)
+    fig_follower.update_layout(title_text= f"{top_n} most commonly used {y_term}", title_x= 0.5)
     fig_follower.update_layout({
     'plot_bgcolor': 'rgba(0, 0, 0, 0)',
     'paper_bgcolor': 'rgba(0, 0, 0, 0)',
@@ -87,16 +123,27 @@ def plot_term_freq_dist(df :pd.DataFrame, output_dir : Path, y_term:str='word', 
 def tokenize_text(df:pd.DataFrame, text_col:str='clean_tweet_text', stopwords:list=gen_stop_words)->pd.DataFrame:
     df[f'{text_col}_tokens'] = df[text_col].apply(lambda x : [tok for tok in tokenizer.tokenize(x) if tok not in stopwords])
 
-def print_top_trig_collocs(word, pd_series:pd.Series, tokenizer, frac_corpus = 0.1, stopwords = gen_stop_words):
+def print_top_trig_collocs(pd_series:pd.Series, tokenizer, frac_corpus = 0.1, stopwords = gen_stop_words):
     corpus = [tokenizer.tokenize(x) for x in pd_series.to_list()]
     finder = TrigramCollocationFinder.from_documents(corpus)
     finder.apply_freq_filter(round(frac_corpus*len(pd_series)))
     main_trigrams = finder.nbest(trigram_measures.likelihood_ratio, 100000)
-    for trigram in main_trigrams:
-        if word in trigram:
-            print(trigram)
+    # for trigram in main_trigrams:
+    #     if word in trigram:
+    #         print(trigram)
         
-    return
+    return main_trigrams
+
+def print_top_bigr_collocs(pd_series:pd.Series, tokenizer, frac_corpus = 0.1, stopwords = gen_stop_words):
+    corpus = [tokenizer.tokenize(x) for x in pd_series.to_list()]
+    finder = BigramCollocationFinder.from_documents(corpus)
+    finder.apply_freq_filter(round(frac_corpus*len(pd_series)))
+    main_bigrams = finder.nbest(bigram_measures.likelihood_ratio, 100000)
+    # for trigram in main_trigrams:
+    #     if word in trigram:
+    #         print(trigram)
+        
+    return main_bigrams
 
 def get_term_freq_df(tok_series:pd.Series)->pd.DataFrame:
     """Takes in a pandas series with tokenized cells of text; adds them together
