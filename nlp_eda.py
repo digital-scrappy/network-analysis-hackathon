@@ -81,9 +81,74 @@ def apply_tfidf_and_return_table_of_results(tfidf:TfidfVectorizer, df:pd.DataFra
     
     return tfidf_sum
 
+def apply_count_vect_and_return_table_of_results(cvt:CountVectorizer, df:pd.DataFrame, text_col:str)->pd.DataFrame:
+    """Fn takes in dataframe, with specified text column, an instantiated sklearn count-vectorizer 
+    and outputs a sorted table of all the the terms with their respective tf-idf scores
+
+    Args:
+        cvt (CountVectorizer): sklearn count vectorizer instance
+        df (pd.DataFrame): dataframe
+        text_col (str): text column we wish to tokenizer and analyse
+
+    Returns:
+        pd.DataFrame: single-column table containing the terms as an index 
+    """    
+    cvt_df = pd.DataFrame(cvt.fit_transform(df[text_col]).toarray(), index = df.index, columns = cvt.get_feature_names_out())
+
+    
+    # cvt_sum = pd.DataFrame(cvt_df.sum(), columns = ['cvt_score']).sort_values('cvt_score', ascending=False).reset_index().rename({'index':'terms'}, axis=1)
+    
+    return cvt_df
+
+def apply_tfidf_and_return_grouped_table_of_results(tfidf:TfidfVectorizer, df:pd.DataFrame, text_col:str, group_col:str)->pd.DataFrame:
+    """Fn takes in dataframe, with specified text column, an instantiated sklearn tfidf-vectorizer 
+    and outputs a sorted table of all the the terms with their respective tf-idf scores 
+    but aggregated by the level of the group col specified
+    Args:
+        tfidf (TfidfVectorizer): sklearn tfidf vectorizer instance
+        df (pd.DataFrame): dataframe
+        text_col (str): text column we wish to tokenizer and analyse
+        group_col(str): column(s) specifying at which level we wish to aggregate, typically
+        at the user level. 
+
+    Returns:
+        pd.DataFrame: single-column table containing the terms as an index 
+    """    
+    tfidf_df = pd.DataFrame(tfidf.fit_transform(df[text_col]).toarray(), index = df.index, columns = tfidf.get_feature_names_out())
+
+    if isinstance(group_col, str):
+        group_col = [group_col]
+
+    full_df = df[group_col].join(tfidf_df)
+    agg_df = get_tfidf_grouped_scores(df, text_col, group_col, 
+                                     )
+
+    agg_df_melt = agg_df.groupby(group_col).sum().reset_index().melt(id_vars=[group_col], 
+                        var_name='term', value_name='tfidf_score').sort_values([ group_col, 'tfidf_score'], ascending=False)
+
+    # tfidf_sum = pd.DataFrame(tfidf_df.sum(), columns = ['tf_idf_score']).sort_values('tf_idf_score', ascending=False).reset_index().rename({'index':'terms'}, axis=1)
+    
+    return agg_df_melt
+
+def get_tfidf_grouped_scores(df:pd.DataFrame, text_col:str,group_col:str, ngram_range:tuple=(1,2), 
+                    tokenizer=tokenizer.tokenize, stopwords:list=gen_stop_words, 
+                    min_doc_frequency:float=0.01, max_doc_frequency:float = 1.0,
+                    smooth_idf:bool=False,
+                    )->pd.DataFrame:
+
+
+    tfidf = TfidfVectorizer(tokenizer=tokenizer, 
+                            ngram_range=ngram_range, 
+                            min_df=min_doc_frequency, 
+                            max_df=max_doc_frequency,
+                            smooth_idf=smooth_idf,
+                            stop_words=stopwords)
+
+    return apply_tfidf_and_return_grouped_table_of_results(tfidf, df, text_col, group_col)
+
 def get_tfidf_scores(df:pd.DataFrame, text_col:str, ngram_range:tuple=(1,2), 
                     tokenizer=tokenizer.tokenize, stopwords:list=gen_stop_words, 
-                    min_doc_frequency:float=0.1, max_doc_frequency:float = 1.0,
+                    min_doc_frequency:float=0.01, max_doc_frequency:float = 1.0,
                     smooth_idf:bool=False,
                     )->pd.DataFrame:
 
@@ -96,6 +161,22 @@ def get_tfidf_scores(df:pd.DataFrame, text_col:str, ngram_range:tuple=(1,2),
                             stop_words=stopwords)
 
     return apply_tfidf_and_return_table_of_results(tfidf, df, text_col)
+
+def get_count_vectorized_df(df:pd.DataFrame, text_col:str, ngram_range:tuple=(1,2), 
+                    tokenizer=tokenizer.tokenize, stopwords:list=gen_stop_words, 
+                    min_doc_frequency:float=0.01, max_doc_frequency:float = 1.0,
+                    )->pd.DataFrame:
+
+
+    count_vect = CountVectorizer()
+    count_vect = CountVectorizer(tokenizer=tokenizer, 
+                            ngram_range=ngram_range, 
+                            min_df=min_doc_frequency, 
+                            max_df=max_doc_frequency,
+                            stop_words=stopwords)
+
+    return apply_count_vect_and_return_table_of_results(count_vect, df, text_col)
+
 
 def calculate_and_plot_tfidf(input_dir:Path, output_dir:Path, top_n:int, text_col_raw :str, tokenizer=tokenizer.tokenize, 
                             stopwords:list=gen_stop_words, 
@@ -154,7 +235,7 @@ def etl_tweet_text(input_dir:Path, text_col_raw:str='tweet_text')->pd.DataFrame:
     df = extract_and_remove_linkable_features(df, text_col_raw)
     return df
 
-def 
+# def 
 
 
 def plot_tfidf_dist(data :pd.DataFrame, output_dir : Path,  top_n:int=20):
