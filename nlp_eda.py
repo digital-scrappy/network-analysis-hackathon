@@ -102,7 +102,33 @@ def calculate_and_plot_tfidf(input_dir:Path, output_dir:Path, top_n:int, text_co
                             ngram_range:tuple=(1,2),
                         min_doc_frequency:float=0.01, max_doc_frequency:float = 1.0,
                         smooth_idf:bool=False,):
+    """Pulls up the csv file containing the 
 
+    Args:
+        input_dir (Path): directory containing tweet_text.csv
+        output_dir (Path): directory where we want to output the results (normally the same as input_dir)
+        top_n (int): how many terms do we want displayed
+        text_col_raw (str): name of raw text column
+        tokenizer (optional): Tokenizer for parsing and tokenizing text. Defaults to tokenizer.tokenize.
+        stopwords (list, optional): Stopwords to be discarded. Please modify the generate_stop_words() function
+        to add more stopwords from different languages. Punctuation is also includedd. Defaults to gen_stop_words.
+        ngram_range (tuple, optional): N grams we want to look at. If we want just single tokens, then
+        specify (1,1). Just bigrams : (2,2). Uni-grams, bigrams and trigrams : (1,3). Defaults to (1,2).
+        min_doc_frequency (float, optional): The minimum fraction of tweets we want a term to appear in for it
+        to be included in the final table. Defaults to 0.01 (i.e. 1% of tweets).
+        max_doc_frequency (float, optional): The maximum fraction of tweets we want a term to appear in for it 
+        to be included in the final table - this is useful in case we want to cut-off terms that appear almost
+        everywhere (but remember that the tf-idf score in itself already does some of the work in reducing/eliminating
+        those terms). Defaults to 1.0 (i.e. 100%).
+        smooth_idf (bool, optional): Whether or not to add 1 to the denominator. This is only useful to have as 
+        True when using the tf-idf vectorizer for new, unseen data (e.g. in the case of building a model).
+        The canonical form of the tf-idf formula that most researchers expected, however, does *NOT* have a 1
+        added to the denominator, so it's recommended for descriptive stats that we keep this set to default.
+         Defaults to False.
+
+    Returns:
+        _type_: _description_
+    """    
     fpath = input_dir/ Path('tweet_text.csv')
     df = pd.read_csv(str(fpath))
     df = extract_and_remove_linkable_features(df, text_col_raw)
@@ -111,6 +137,7 @@ def calculate_and_plot_tfidf(input_dir:Path, output_dir:Path, top_n:int, text_co
     return plot_tfidf_dist(tfidf_, output_dir, top_n)
 
 # def clean_df_text(df:pd.DataFrame, text_col_raw:str='tweet_text')->pd.DataFrame:
+
 
 
 
