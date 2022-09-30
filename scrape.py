@@ -37,28 +37,33 @@ def get_user_tweets(user: str, n_tweets:int):
 
     #expanding the retrieval of data from the generator as calling it
     #repeatedly exhausts it and we are losing data 
-    for t in tweets:
-        raw_mentions.append(t.mentionedUsers)
-        tweet_ids.append(t.id)
+    try:
+        for t in tweets:
+            raw_mentions.append(t.mentionedUsers)
+            tweet_ids.append(t.id)
 
 
-        #tw_dict is for text
-        tw_dict = {}
-        try:
-            tw_dict['tweet_id'] = t.id
-            tw_dict['datetime'] = t.date
-            tw_dict['display_name'] = t.date
-        except (ScraperException, AttributeError):
-            tw_dict['tweet_id'] = np.nan
-            tw_dict['tweet_text'] = np.NaN
-            tw_dict['datetime'] = np.NaN
-        try:
-            tw_dict['tweet_text'] = t.content
-        except (ScraperException, AttributeError):
-            tw_dict['tweet_text'] = np.NaN            
+            #tw_dict is for text
+            tw_dict = {}
+            try:
+                tw_dict['tweet_id'] = t.id
+                tw_dict['datetime'] = t.date
+                tw_dict['display_name'] = t.date
+            except (ScraperException, AttributeError):
+                tw_dict['tweet_id'] = np.nan
+                tw_dict['tweet_text'] = np.NaN
+                tw_dict['datetime'] = np.NaN
+            try:
+                tw_dict['tweet_text'] = t.content
+            except (ScraperException, AttributeError):
+                tw_dict['tweet_text'] = np.NaN            
+
+            tw_dict['User_id'] = np.NaN
+            tweet_contents_lst.append(tw_dict)
+    except ScraperException:
+        return None 
         
-        tw_dict['User_id'] = np.NaN
-        tweet_contents_lst.append(tw_dict)
+        
 
     # tweet_ids = list(map(lambda x: x.id, tweets))
 
@@ -140,9 +145,20 @@ def start_from_user(user: str, max_it: int = 1, n_tweets: int = 100):
     user_dict[user] = result[1][1]
     users_to_update_with = set()
     # tweet_contents
+    tweet_dict = {"tweet_id" : [],
+                  "datetime" : [],
+                  "display_name" : [],
+                  "tweet_text" : [],
+                  "User_id" : []}
+    for tweet in result[2]:
+        for key, value in tweet.items():
+            tweet_dict[key].append(value)
+                  
+                  
+            
+            
 
-    tweet_dict = {}
-    tweet_dict[user] = result[2]
+    
 
     i = 0
     pool = multiprocessing.Pool(processes=12)
@@ -174,8 +190,11 @@ def start_from_user(user: str, max_it: int = 1, n_tweets: int = 100):
         # tweet_contents.extend(other_user_tweet_contents)
 
         for user_result in results:
-            if len(user_result) >= 3:
-                tweet_dict[user_result[1][0]] = user_result[2]
+            if user_result:
+                if len(user_result) >= 3:
+                    for tweet in user_result[2]:
+                        for key, value in tweet.items():
+                            tweet_dict[key].append(value)
 
         
 
