@@ -185,14 +185,13 @@ def get_count_vectorized_df(df:pd.DataFrame, text_col:str, ngram_range:tuple=(1,
                     )->pd.DataFrame:
 
 
-    count_vect = CountVectorizer()
     count_vect = CountVectorizer(tokenizer=tokenizer, 
                             ngram_range=ngram_range, 
                             min_df=min_doc_frequency, 
                             max_df=max_doc_frequency,
                             stop_words=stopwords)
 
-    return apply_count_vect_and_return_table_of_results(count_vect, df, text_col)
+    return apply_count_vect_and_return_table_of_results(count_vect, df, text_col), count_vect
 
 
 def calculate_and_plot_tfidf(input_dir:Path, output_dir:Path, top_n:int, text_col_raw :str, tokenizer=tokenizer.tokenize, 
@@ -324,14 +323,98 @@ def get_lda_topic_data(input_dir:Path, text_col_raw:str='tweet_text',
 
     # count vectorize data
 
-    cvt_df = get_count_vectorized_df(df, text_col_clean, tokenizer = lemmatizer)
+    cvt_df, cvt_vectorizer = get_count_vectorized_df(df, text_col_clean, tokenizer = lemmatizer)
 
     #get lda object
     lda_model_ = inst_lda_object(**kwargs)
     # return cvt_df
     lda_df, lda_model_ = dt_to_lda(cvt_df, lda_model_)
 
-    return lda_df, lda_model_
+    cvt_dt_mat = cvt_vectorizer.transform(df[text_col_clean])
+
+    return lda_df, lda_model_, cvt_vectorizer, cvt_dt_mat
+
+def etl_transform_visualize_lda_topics(input_dir:Path, text_col_raw:str='tweet_text', 
+                        lemmatizer=lemmy,  **kwargs):
+    """Fn extracts, transforms, loads, cleans, lemmatizes and visualises Latent Dirichlet
+    Allocation (LDA) topics from a dataset, using a single text series as input. 
+    To use, simply specify the directory containing the data, and it will 
+    output a pyLDAvis dashboard in the same dir.
+
+    Args:
+        input_dir (Path): directory containing 'tweet_text.csv'. Also where the 
+        output html file will be stored
+        text_col_raw (str, optional): Name of text column in input file. Defaults to 'tweet_text'.
+        lemmatizer (Lemmatizer class, optional): Lemmatizer used for processing. Defaults to lemmy.
+
+    Returns:
+        pyLDAviz display data
+    """    
+    lda_df, lda_model_, cvt_vectorizer, cvt_dt_mat = get_lda_topic_data(input_dir,
+                                                            text_col_raw, 
+                                                            lemmatizer, 
+                                                            **kwargs)
+
+
+
+    return generate_pyldaviz_dashboard(lda_model_, cvt_dt_mat, cvt_vectorizer, input_dir)
+
+
+def print_topics(model, vectorizer, n_top_words, topics_to_include = None):
+    """Takes in the sklearn decomposition model (LDA), our DocTerm 
+    vectorizer (Count/TFiDF), nr of words we'd like to see and num of topics
+    to visualise. 
+    Prints out the top n topics/latent concepts plus their most 
+    strongly associated terms"""
+    words = vectorizer.get_feature_names()
+    if topics_to_include==None:
+        for topic_idx, topic in enumerate(model.components_):
+            print(f"\nTopic #{topic_idx+1}:")
+            print("; ".join([words[i]
+                            for i in topic.argsort()[:-n_top_words - 1:-1]]))
+    else:
+        for topic_idx, topic in enumerate(model.components_):
+            if topic_idx in topics_to_include:
+                print(f"\nTopic ##{topic_idx+1}")
+                print("; ".join([words[i]
+                                for i in topic.argsort()[:-n_top_words - 1:-1]]))
+    
+def generate_pyldaviz_dashboard(lda_model_, cvt_sparse_dt, cvt_vectorizer, output_dir):
+    """Fn generates and saves a pyLDAviz dashboard as an html file. 
+    It also returns the display data so this can be used in other functions/
+    in a jupyter notebook. To use this in a Jupyter nb, once you have 
+    received display_data from this fn, run:
+
+    ```
+    import pyLDAvis
+    
+    pyLDAvis.enable_notebook()
+
+    pyLDAvis.display(display_data)
+    ```
+    and this will render the dashboard in the notebook.
+
+    Args:
+        lda_model_ (sklearn.decomposition object): fitted LDA model
+        cvt_sparse_dt (sparse matrix): sparse matrix resulting from applying an sklearn
+        count vectorizer to a text series
+        cvt_vectorizer (sklearn.feature_extraction.text.CountVectorizer object):
+         the fitted count vectorizer object itself
+        output_dir (pathlib.Path): directory to output to
+
+    Returns:
+        LDA viz display data 
+    """
+    
+    display_data = pyLDAvis.sklearn.prepare(lda_model_, 
+                                            cvt_sparse_dt, 
+                                            cvt_vectorizer)
+
+    output_path = str(output_dir / Path('LDA_viz_plot.html'))
+    pyLDAvis.save_html(display_data, output_path)
+
+    return display_data
+    
 
 def lemmatize_text_data(x:str, lemmatizer=lemmy)->pd.DataFrame:
     return ' '.join(lemmy(x))
