@@ -102,7 +102,9 @@ def calculate_and_plot_tfidf(input_dir:Path, output_dir:Path, top_n:int, text_co
                             ngram_range:tuple=(1,2),
                         min_doc_frequency:float=0.01, max_doc_frequency:float = 1.0,
                         smooth_idf:bool=False,):
-    """Pulls up the csv file containing the 
+    """Pulls up the csv file containing the tweet texts, cleans, tokenizes and vectorizes
+    the text data and outputs (and returns) a plotly_express graph of the top_n terms by 
+    tf-idf score.
 
     Args:
         input_dir (Path): directory containing tweet_text.csv
@@ -127,18 +129,32 @@ def calculate_and_plot_tfidf(input_dir:Path, output_dir:Path, top_n:int, text_co
          Defaults to False.
 
     Returns:
-        _type_: _description_
+        plot: plotly_express bar plot
     """    
-    fpath = input_dir/ Path('tweet_text.csv')
-    df = pd.read_csv(str(fpath))
-    df = extract_and_remove_linkable_features(df, text_col_raw)
+    df = etl_tweet_text(input_dir)
     text_col_clean = f'clean_{text_col_raw}'
     tfidf_ = get_tfidf_scores(df, text_col_clean, ngram_range, tokenizer, stopwords, min_doc_frequency, max_doc_frequency, smooth_idf)
     return plot_tfidf_dist(tfidf_, output_dir, top_n)
 
-# def clean_df_text(df:pd.DataFrame, text_col_raw:str='tweet_text')->pd.DataFrame:
+def etl_tweet_text(input_dir:Path, text_col_raw:str='tweet_text')->pd.DataFrame:
+    """Get csv file from input_dir tweet_text.csv, extract and clean features such as 
+    URLs, mentions and hashtags into separate columns. Returns copy of data with
+    raw text col and new clean version (same name as raw column with 'clean_' prefix)
 
+    Args:
+        input_dir (Path): directory containing tweet_text.csv
+        output_dir (Path): directory where we want to output the results (normally the same as input_dir)
+        text_col_raw (str): name of raw text column
+        
+    Returns:
+        pd.DataFrame: clean dataframe
+    """    
+    fpath = input_dir/ Path('tweet_text.csv')
+    df = pd.read_csv(str(fpath))
+    df = extract_and_remove_linkable_features(df, text_col_raw)
+    return df
 
+def 
 
 
 def plot_tfidf_dist(data :pd.DataFrame, output_dir : Path,  top_n:int=20):
