@@ -19,6 +19,9 @@ trigram_measures = nltk.collocations.TrigramAssocMeasures()
 import plotly_express as px
 
 from sklearn.decomposition import LatentDirichletAllocation as LDA
+from pyLDAvis import sklearn as sklearn_lda
+import pickle 
+import pyLDAvis
 
 tokenizer = RegexpTokenizer(r'\b[A-Za-z0-9\-]{1,}\b')
 default_tk = tokenizer
@@ -61,6 +64,20 @@ def generate_stop_words_by_language(lst_languages:list)->list:
 lst_languages = ['english', 'french', 'spanish', 'german', 'spanish', 'russian']
 gen_stop_words = generate_stop_words_by_language(lst_languages)
 
+
+class LemmaTokenizer(object):
+    def __init__(self, tokenizer = default_tk, stopwords = gen_stop_words):
+        self.wnl = WordNetLemmatizer()
+        self.tokenizer = tokenizer
+        self.stopwords = stopwords
+    def __call__(self, articles):
+        return [self.wnl.lemmatize(token, ) for token in self.tokenizer.tokenize(articles) if token not in self.stopwords]
+    
+    def tokenize(self, articles):
+        return [self.wnl.lemmatize(token) for token in self.tokenizer.tokenize(articles) if token not in self.stopwords]
+    
+
+lemmy = LemmaTokenizer()
 
 def apply_tfidf_and_return_table_of_results(tfidf:TfidfVectorizer, df:pd.DataFrame, text_col:str)->pd.DataFrame:
     """Fn takes in dataframe, with specified text column, an instantiated sklearn tfidf-vectorizer 
@@ -163,7 +180,7 @@ def get_tfidf_scores(df:pd.DataFrame, text_col:str, ngram_range:tuple=(1,2),
     return apply_tfidf_and_return_table_of_results(tfidf, df, text_col)
 
 def get_count_vectorized_df(df:pd.DataFrame, text_col:str, ngram_range:tuple=(1,2), 
-                    tokenizer=tokenizer.tokenize, stopwords:list=gen_stop_words, 
+                    tokenizer=lemmy, stopwords:list=gen_stop_words, 
                     min_doc_frequency:float=0.01, max_doc_frequency:float = 1.0,
                     )->pd.DataFrame:
 
@@ -292,6 +309,80 @@ def plot_term_freq_dist(data :pd.DataFrame, output_dir : Path, y_term:str='word'
 def tokenize_text(df:pd.DataFrame, text_col:str='clean_tweet_text', stopwords:list=gen_stop_words)->pd.DataFrame:
     df[f'{text_col}_tokens'] = df[text_col].apply(lambda x : [tok for tok in tokenizer.tokenize(x) if tok not in stopwords])
 
+def get_lda_topic_data(input_dir:Path, text_col_raw:str='tweet_text', 
+                        lemmatizer=lemmy,  **kwargs):
+
+    
+    #etl of data
+
+    df = etl_tweet_text(input_dir)
+    text_col_clean = f'clean_{text_col_raw}'
+
+    # lemmatize the text col
+    # lemm_col = f'lemmatized_{text_col_raw}'
+    # df[lemm_col] = df[text_col_clean].apply(lambda x : lemmatize_text_data(x))
+
+    # count vectorize data
+
+    cvt_df = get_count_vectorized_df(df, text_col_clean, tokenizer = lemmatizer)
+
+    #get lda object
+    lda_model_ = inst_lda_object(**kwargs)
+    # return cvt_df
+    lda_df, lda_model_ = dt_to_lda(cvt_df, lda_model_)
+
+    return lda_df, lda_model_
+
+def lemmatize_text_data(x:str, lemmatizer=lemmy)->pd.DataFrame:
+    return ' '.join(lemmy(x))
+
+def inst_lda_object(**kwargs):
+    try:
+        alpha_ = kwargs['alpha']
+        eta_ = kwargs['eta']
+        n_topics_ = kwargs['n_topics']
+
+    except KeyError:
+        n_topics_ = 10
+        alpha_ = 1/n_topics_
+        eta_ = 1/n_topics_
+
+    return LDA(n_components=n_topics_,
+             doc_topic_prior=alpha_, 
+             topic_word_prior=eta_)
+
+def dt_to_lda(data, lda_obj):
+    """Takes document term matrix and returns (dataframe with LDirA topic data, 
+    LDirA sklearn object). Specify number of non-DocTerm columns, fn will assume 
+    all the Doc-Term columns are to the left of that. 
+    Params:
+    data - (Pandas DataFrame obj) dataframe containing text and other data
+    your original dataframe, pre-vectorisation.
+    lda_obj - (obj) pre-instantiated sklearn LatentDirichletAllocation object
+    
+    Returns: 
+    new_df , vect_train_df (tuple) - dataframe with/out non-text columns on the left and document term matrix on the right"""
+    
+    
+    lda_df = pd.DataFrame(lda_obj.fit_transform(data), index=data.index, columns=list(range(1,(lda_obj.n_components+1))))
+    lda_df = lda_df.add_prefix('topic_')
+    
+    return lda_df, lda_obj
+
+def preprocess_data(string):
+    """Function that takes in any single continous string;
+    Returns 1 continuous string
+    A precautionary measure to try to remove any emails or websites that BS4 missed"""
+    new_str = re.sub(r"\S+@\S+", '', string)
+    new_str = re.sub(r"\S+.co\S+", '', new_str)
+    new_str = re.sub(r"\S+.ed\S+", '', new_str)
+    new_str_tok = tokenizer.tokenize(new_str)
+    new_str_lemm = [lemmy.lemmatize(token) for token in new_str_tok]
+    new_str_cont = ''
+    for tok in new_str_lemm:
+        new_str_cont += tok + ' '
+    return new_str_cont
+
 def print_top_trig_collocs(pd_series:pd.Series, tokenizer, frac_corpus = 0.1, stopwords = gen_stop_words):
     corpus = [tokenizer.tokenize(x) for x in pd_series.to_list()]
     finder = TrigramCollocationFinder.from_documents(corpus)
@@ -303,7 +394,7 @@ def print_top_trig_collocs(pd_series:pd.Series, tokenizer, frac_corpus = 0.1, st
         
     return main_trigrams
 
-def print_top_bigr_collocs(pd_series:pd.Series, tokenizer, frac_corpus = 0.1, stopwords = gen_stop_words):
+def print_top_bigr_collocs(pd_series:pd.Series, tokenizer, frac_corpus = 0.01, stopwords = gen_stop_words):
     corpus = [tokenizer.tokenize(x) for x in pd_series.to_list()]
     finder = BigramCollocationFinder.from_documents(corpus)
     finder.apply_freq_filter(round(frac_corpus*len(pd_series)))
