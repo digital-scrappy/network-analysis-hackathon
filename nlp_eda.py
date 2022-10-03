@@ -544,13 +544,113 @@ def extract_and_remove_linkable_features(df:pd.DataFrame, text_col:str='tweet_te
     return remove_linkable_features(extract_linkable_features(df, text_col))
 
 
-def main(input_file:str, output_dir:str):
+def main(input_dir:str, output_dir:str, 
+        text_col_raw:str = 'tweet_text', num_topics:int=10,
+        lemmatizer=lemmy, 
+        **kwargs
+        ):
 
+    input_dir = Path(input_dir)
+    output_dir = Path(output_dir)
+
+    if kwargs is None:
+        num_topics=10
+        kwargs = {}
+        
+
+    #get and plot tfidf
+    calculate_and_plot_tfidf(input_dir, output_dir, 20, text_col_raw, min_doc_frequency=0.01, max_doc_frequency=0.9)
+
+    #term frequency as well
+
+
+
+    # print most common terms from topics
+    lda_df, lda_model_, cvt_vectorizer, cvt_dt_mat = get_lda_topic_data(input_dir,
+                                                            text_col_raw, 
+                                                            lemmatizer, 
+                                                            **kwargs)
+    print_topics(lda_model_, cvt_vectorizer, 20)
+
+
+    # plot lda topics
+    generate_pyldaviz_dashboard(lda_model_, cvt_dt_mat, cvt_vectorizer, input_dir)
     return
+
+def evaluate_topic_model(lda_model) -> float:
+    """Fn uses either the extrinsic coherence score (UCI) of the intrinsice
+    UMass coherence measure to return a single value of coherence
+
+    Args:
+        lda_model (sklearn LDirA model): fitted LDA model
+    Returns:
+    (float): coherence score
+    """
+
+    pass
+
+
+def fit_and_evaluate_multiple_topic_models(df:pd.DataFrame, text_col:str='clean_tweet_text', topic_num_start_end:tuple=(3,10),  alpha:float=0.1, eta:float=0.1,
+                                        tokenizer = lemmatizer)->dict:
+    """With given alpha and eta parameters, fn fits toic models onto the corpus for range of number of topics,
+    evaluates coherence scores, and returns a dict with results, including the best fitted model, and the evaluation results. 
+
+    Args:
+        corpus (pd.DataFrame):  documents to be fitted to
+        topic_num_start_end (tuple, optional): (Start number of topics, End number of topics). Defaults to (3,10).
+        alpha (float, optional): _description_. Defaults to 0.1.
+        eta (float, optional): _description_. Defaults to 0.1.
+
+    Returns:
+        dict: {'most_coherent_model': lda_model, 
+            'coherence_scores': dict_coherence_scores, 
+            
+                }
+    """
+
+
+
+    cvt_df, cvt_vectorizer = get_count_vectorized_df(df, text_col,  tokenizer = lemmatizer)
+
+    
+    results_dict, model_dict, coherence_scores = {}, {}, {}
+    start, end = topic_num_start_end
+    for num_topics in range(start, end+1):
+        #fit model
+
+        #get lda object
+        lda_model_ = inst_lda_object(**{'num_topics':num_topics, 'alpha':alpha, 'eta':eta})
+        # return lda_df and lda_model
+        _, lda_model_ = dt_to_lda(cvt_df, lda_model_)
+
+        eval_score = evaluate_topic_model(lda_model_)
+
+        coherence_scores[num_topics] = eval_score
+        model_dict[num_topics] = lda_model_
+
+    
+    values_max = max(list(coherence_scores.values()))
+    lst_topic_num = list(range(start,end))
+    best_num_t_index = list(coherence_scores.values()).index(values_max)
+    best_number_topics = lst_topic_num[best_num_t_index]
+
+    results_dict['most_coherent_model'] = model_dict[best_num_t_index]
+    results_dict['coherence_scores'] = coherence_scores
+
+    return results_dict
+
+def fit_pretrained_model_to_data():
+    pass
+
+def fit_pretrained_word_vector_model_to_data():
+    pass
+
+def fit_predict_pretrained_sentiment_model_to_data():
+    pass
 
 if __name__=='__main__':
 
-    start_user = sys.argv[0]
-    depth = int(sys.argv[1])
+    # start_user = sys.argv[0]
+    # depth = int(sys.argv[1])
 
     main()
