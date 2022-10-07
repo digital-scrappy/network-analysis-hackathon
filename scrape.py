@@ -293,7 +293,16 @@ def main(start_user:str, depth:int, num_tweets:int, project_name:str='Project_na
     if save:
         save_query_results(run_path, run_params_dict, out_edges, user_info, edge_attr_dict)
 
-    return run_path, run_params_dict, out_edges, user_info, edge_attr_dict
+    data_dict = data_dict = {
+        'run_path' : run_path, 
+        'run_params_dict' : run_params_dict, 
+        'out_edges' : out_edges, 
+        'user_info' : user_info, 
+        'edge_attr_dict' : edge_attr_dict, 
+        'tweet_text_' : tweet_text_df}
+
+
+    return data_dict
 
 def save_query_results(run_path:str, run_params_dict:dict, out_edges, user_info, edge_attr_dict):
 

@@ -9,6 +9,7 @@ from datetime import datetime
 import PySimpleGUI as sg
 import re
 from pathlib import Path
+import datetime as dt
 
 import scrape as TANV
 import create_plots as plot
@@ -240,7 +241,9 @@ def run_gui():
                                 # when the function for aggregating and saving all the files togethe is complete, 
                                 #change first param to False
                                 row['-PROJECT-NAME-'] = project_name_
-                                results.append(run_network_analysis(save=True, **row))
+                                # a tuple is returned by run_network_analysis() and now added to the list:
+                                #  run_path, run_params_dict, out_edges, user_info, edge_attr_dict
+                                results.append(run_network_analysis(save=False, **row))
                                 print(i)
                                 time.sleep(1)
                                 update_val = 100*(i+1)/len(query_df)
@@ -251,7 +254,8 @@ def run_gui():
                         except Exception as E:
                             error_msg = '\n'.join(['Error in code (please reach out to admin: ', str(E.__class__), str(E.__str__())])
                             # Uncomment when fn ready
-                            # agg_results = aggregate_all_the_results(True, results)
+                            if len(results)>0:
+                                agg_results = aggregate_all_the_results(save=True, results)
                             current_window.close()
                             current_window = generate_post_error_intro_window(project_name_, 
                                                                             f"""Error occurred while running multiple queries. Nr of queries run successfully = {i}:
@@ -264,8 +268,8 @@ def run_gui():
 
                         # add all the results together and then save them
                         # Uncomment when fn ready
-
-                        # agg_results = aggregate_all_the_results(results, save=True)
+                        if len(results)>0:
+                            agg_results = aggregate_all_the_results(save=True, results)
 
                         # and output them to a useful location
 
@@ -409,10 +413,21 @@ def aggregate_all_the_results(save:bool=True, *args):
     """    
 
     for lst_of_results in args:
+        # a tuple of results i stored; each tuple has the form
+        # run_path, run_params_dict, out_edges, user_info, edge_attr_dict
+        # we ignore run_path
         _, run_params_dict, out_edges, user_info, edge_attr_dict = lst_of_results
 
-    #taking last runpath
-    run_path = args[-1][0]
+        #now aggregate them all 
+
+    #taking last runpath and modify it
+    run_path_last = args[-1][0]
+    run_path_project = run_path_last.parent
+    day = dt.datetime.now().date().isoformat() + "_"
+    time = "-".join([str(dt.datetime.now().hour),  str(dt.datetime.now().minute), str(dt.datetime.now().second)])
+    
+    run_path = run_path_project / ('MERGED' + day + time)
+    print('Saving MERGED data inside ', run_path)
 
     if save:
         TANV.save_query_results(run_path, run_params_dict, out_edges, user_info, edge_attr_dict)
@@ -656,6 +671,12 @@ def process_filename(x:str)->str:
     x = x.replace(' ', '_')
 
     return x
+
+
+# functions for merging multiple query results here:
+
+def load_and_merge_all_data(lst_dirs:list):
+    pass
 
 
 if __name__=='__main__':
