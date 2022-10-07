@@ -295,11 +295,11 @@ def main(start_user:str, depth:int, num_tweets:int, project_name:str='Project_na
 
     data_dict = data_dict = {
         'run_path' : run_path, 
-        'run_params_dict' : run_params_dict, 
-        'out_edges' : out_edges, 
-        'user_info' : user_info, 
-        'edge_attr_dict' : edge_attr_dict, 
-        'tweet_text_' : tweet_text_df}
+        'run_info' : run_params_dict, 
+        'edge_list' : out_edges, 
+        'user_attributes' : user_info, 
+        'edge_attributes' : edge_attr_dict, 
+        'tweet_text' : tweet_text_df}
 
 
     return data_dict

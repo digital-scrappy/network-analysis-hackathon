@@ -10,7 +10,7 @@ import PySimpleGUI as sg
 import re
 from pathlib import Path
 import datetime as dt
-
+import csv
 import scrape as TANV
 import create_plots as plot
 
@@ -255,7 +255,7 @@ def run_gui():
                             error_msg = '\n'.join(['Error in code (please reach out to admin: ', str(E.__class__), str(E.__str__())])
                             # Uncomment when fn ready
                             if len(results)>0:
-                                agg_results = aggregate_all_the_results(save=True, results)
+                                agg_results = aggregate_all_the_results(True, results)
                             current_window.close()
                             current_window = generate_post_error_intro_window(project_name_, 
                                                                             f"""Error occurred while running multiple queries. Nr of queries run successfully = {i}:
@@ -269,7 +269,7 @@ def run_gui():
                         # add all the results together and then save them
                         # Uncomment when fn ready
                         if len(results)>0:
-                            agg_results = aggregate_all_the_results(save=True, results)
+                            agg_results = aggregate_all_the_results(True, results)
 
                         # and output them to a useful location
 
@@ -402,7 +402,61 @@ def check_presence_of_files_for_analysis(list_files:list):
     else:
         return False, ''
 
-def aggregate_all_the_results(save:bool=True, *args):
+
+def merge_all_by_key(lst_results:list, key:str):
+    all_ = [x[key] for x in lst_results]
+    
+    if isinstance(all_, list):
+        if isinstance(all_[0], list):
+            all_together = all_[0]
+            try:
+
+                for next_ in all_[1:]:
+                    all_together.extend(next_)
+
+            except (IndexError, KeyError):
+                pass
+        elif isinstance(all_[0], dict):
+            
+            all_together = {'All_queries':all_}
+
+        elif isinstance(all_[0], pd.DataFrame):
+            all_together = pd.concat(all_, ignore_index=True, axis=0)
+
+        else: 
+            all_together = all_
+
+    elif isinstance(all_, dict):
+        all_toghether = {'All_queries':all_}   
+
+
+    return all_together
+
+def merge_all_by_key_and_save(lst_results:list, key:str, run_path):
+
+    merged_ = merge_all_by_key(lst_results, key)
+
+    if key=='edge_list':
+        with open((run_path / f'{key}.csv'), 'w') as handle:
+            writer = csv.writer(handle)
+            writer.writerows(merged_)
+    
+    elif key=='tweet_text':
+        # drop duplicat tweets:
+        merged_.drop_duplicates(subset='tweet_id', keep='first', 
+                                inplace=True, 
+                                )
+
+        tweet_text_fpath = str(run_path / f'{key}.csv')
+        merged_.to_csv(tweet_text_fpath)
+
+    else:
+        with open((run_path / f'{key}.json'), 'w') as handle:
+            json.dump(merged_, handle)
+
+    return
+
+def aggregate_all_the_results(save:bool, results:dict):
     """Function takes a list of results, where each result should have the following stored
     run_path, run_params_dict, out_edges, user_info, edge_attr_dict
 
@@ -412,25 +466,28 @@ def aggregate_all_the_results(save:bool=True, *args):
     4. Finally, pass them all to the saving function
     """    
 
-    for lst_of_results in args:
-        # a tuple of results i stored; each tuple has the form
-        # run_path, run_params_dict, out_edges, user_info, edge_attr_dict
-        # we ignore run_path
-        _, run_params_dict, out_edges, user_info, edge_attr_dict = lst_of_results
+    # for lst_of_results in args:
+    #     # a tuple of results i stored; each tuple has the form
+    #     # run_path, run_params_dict, out_edges, user_info, edge_attr_dict
+    #     # we ignore run_path
+    #     _, run_params_dict, out_edges, user_info, edge_attr_dict = lst_of_results
 
         #now aggregate them all 
 
     #taking last runpath and modify it
-    run_path_last = args[-1][0]
+    run_path_last = results[-1]['run_path']
     run_path_project = run_path_last.parent
     day = dt.datetime.now().date().isoformat() + "_"
     time = "-".join([str(dt.datetime.now().hour),  str(dt.datetime.now().minute), str(dt.datetime.now().second)])
     
     run_path = run_path_project / ('MERGED' + day + time)
     print('Saving MERGED data inside ', run_path)
+    os.makedirs(run_path)
 
-    if save:
-        TANV.save_query_results(run_path, run_params_dict, out_edges, user_info, edge_attr_dict)
+    lst_keys = list(results[0].keys())[1:]
+
+    for key in lst_keys:
+        merge_all_by_key_and_save(results, key, run_path)
 
     return
 
