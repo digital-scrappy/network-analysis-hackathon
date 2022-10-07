@@ -309,7 +309,7 @@ def run_gui():
                             """
                             current_window.close()
                             current_window = generate_post_error_intro_window(project_name_, error_msg, **values)
-
+                       
 
                         continue 
 
@@ -341,6 +341,8 @@ def run_gui():
                     current_window = generate_post_error_analysis_window(project_name_, error_msg, **values)
                     continue
 
+
+                print('RERUNNING analysis on prior folder: ', fpath)
         
                 #pass to analysis function
                 # NOTE placeholder comment here
@@ -351,7 +353,7 @@ def run_gui():
                 run_path = Path(fpath)
                 # now to call the fn from create_plots
                 plot_result = plot.plot_all(run_path, run_path)
-
+                print('Created new plots', plot_result)
                 # check in case an error is returned
                 # NOTE: this part will be developed further to have more specific error handling and flagging
                 if plot_result==pd.errors.EmptyDataError:
@@ -360,6 +362,7 @@ def run_gui():
                     """
                     current_window.close()
                     current_window = generate_post_error_intro_window(project_name_, error_msg, **values)
+                    event, values = current_window.read()
 
                 continue
 
@@ -391,7 +394,7 @@ def run_gui():
 def check_presence_of_files_for_analysis(list_files:list):
 
     necessary_files = ['edge_list.csv',
-                        'user_attributes.csv',
+                        # 'user_attributes.csv',
                         'edge_list.json',
                         'edge_attributes.json',
                         'user_attributes.json',]
@@ -406,6 +409,9 @@ def check_presence_of_files_for_analysis(list_files:list):
 def merge_all_by_key(lst_results:list, key:str):
     all_ = [x[key] for x in lst_results]
     
+    #special case for user attributes as it requires some wrangling beforehand
+
+
     if isinstance(all_, list):
         if isinstance(all_[0], list):
             all_together = all_[0]
@@ -418,7 +424,14 @@ def merge_all_by_key(lst_results:list, key:str):
                 pass
         elif isinstance(all_[0], dict):
             
-            all_together = {'All_queries':all_}
+            all_together = all_[0]
+            try:
+
+                for next_ in all_[1:]:
+                    all_together.update(next_)
+
+            except (IndexError, KeyError):
+                pass
 
         elif isinstance(all_[0], pd.DataFrame):
             all_together = pd.concat(all_, ignore_index=True, axis=0)
@@ -440,6 +453,19 @@ def merge_all_by_key_and_save(lst_results:list, key:str, run_path):
         with open((run_path / f'{key}.csv'), 'w') as handle:
             writer = csv.writer(handle)
             writer.writerows(merged_)
+
+        with open((run_path / f'{key}.json'), 'w') as handle:
+            json.dump(merged_, handle)
+
+    elif key=='user_attributes':
+        if isinstance(merged_, dict):
+            with open((run_path / f'{key}.json'), 'w') as handle:
+                json.dump(merged_, handle)
+        else:
+            user_info_fpath = str(run_path / "user_attributes.csv")
+            merged_.to_csv(user_info_fpath)
+            
+
     
     elif key=='tweet_text':
         # drop duplicat tweets:
@@ -485,9 +511,22 @@ def aggregate_all_the_results(save:bool, results:dict):
     os.makedirs(run_path)
 
     lst_keys = list(results[0].keys())[1:]
-
+    print('\n\n', lst_keys)
     for key in lst_keys:
-        merge_all_by_key_and_save(results, key, run_path)
+        if key=='user_attributes':
+            #first for the json
+            merge_all_by_key_and_save(results, key, run_path)
+
+            #convert to dataframe
+            for res in results:
+                res[key] = pd.DataFrame.from_dict(res[key], orient="index")
+            #and run again
+            merge_all_by_key_and_save(results, key, run_path)
+
+        else:
+            # if another, then just use fn as normal
+            merge_all_by_key_and_save(results, key, run_path)
+
 
     return
 

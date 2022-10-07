@@ -54,13 +54,31 @@ def plot_all(data_path : Path, out_path : Path):
 
 
     user_follower_dict = {}
-    for user in user_attributes.keys():
-        user_follower_dict[user] = user_attributes[user]["#friends"]
+    if list(user_attributes.keys())[0]=='All_queries':
+        user_attributes = user_attributes['All_queries']
+        for query_dict in user_attributes:
+            for user in query_dict.keys():
+                user_follower_dict[user] = query_dict[user]["#friends"]
 
-    scaled_follower_dict = scale_dict_values(user_follower_dict)
-    for key, value in scaled_follower_dict.items():
-        user_attributes[key]["scaled_friends"] = value
-    scaled_edge_attributes = scale_dict_values(edge_attributes)
+        scaled_follower_dict = scale_dict_values(user_follower_dict)
+
+        for key, value in scaled_follower_dict.items():
+            if key in query_dict.keys():
+                query_dict[key]["scaled_friends"] = value
+            else:
+                continue
+        scaled_edge_attributes = scale_dict_values(edge_attributes)
+
+
+    else:
+        for user in user_attributes.keys():
+            user_follower_dict[user] = user_attributes[user]["#friends"]
+
+        scaled_follower_dict = scale_dict_values(user_follower_dict)
+
+        for key, value in scaled_follower_dict.items():
+            user_attributes[key]["scaled_friends"] = value
+        scaled_edge_attributes = scale_dict_values(edge_attributes)
 
 
     g = nx.from_pandas_edgelist(df = edge_df, source = 0, target = 1) 
@@ -71,6 +89,8 @@ def plot_all(data_path : Path, out_path : Path):
     plot_followers(user_info_df, out_path)
     plot_analysis(g, user_info_df, out_path,)
     plot_posts(user_info_df, out_path)
+
+    return 'SUCCESS!'
 
 
 if __name__ == "__main__":
