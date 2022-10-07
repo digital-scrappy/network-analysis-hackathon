@@ -29,7 +29,7 @@ def main():
 
     return
 
-def generate_secondary_window_analysis(project_name_:str= f'{name_of_tool} project', **kwargs):
+def generate_secondary_window_analysis(project_name_:str=f'{name_of_tool} project', **kwargs):
     return sg.Window(f'{name_of_tool} - Analysis Mode', 
                     generate_secondary_window_analysis_layout(project_name_,**kwargs))
 
@@ -378,7 +378,7 @@ def run_gui():
             print(E)
             print(E.__str__())
             print(E.__traceback__)
-            # raise E
+            raise E
             continue
 
     return
